@@ -7,7 +7,7 @@ from PIL import Image
 import uuid
 
 # Local Imports
-from trainers.trainers import train_cnn, train_logistic_regression, train_random_forest, preprocess_data, split_data
+# from trainers.trainers import train_cnn, train_logistic_regression, train_random_forest, preprocess_data, split_data
 from utils import display_model_metrics
 
 # --- PAGE CONFIG ---
@@ -157,7 +157,7 @@ with tab2:
     col_train_left, col_train_right = st.columns([1, 2])
     
     with col_train_left:
-        model_option = st.selectbox("Model Type", ["CNN (Keras)", "Logistic Regression", "Random Forest"])
+        model_option = st.selectbox("Model Type", ["CNN (Keras)"])
         
         # Training Config
         epochs = 10
@@ -227,14 +227,7 @@ with tab2:
                                 short_model_summary = "\n".join(stringlist)
                                 st.code(short_model_summary)
                                 
-                        elif model_option == "Logistic Regression":
-                            model = train_logistic_regression(X_train, y_train)
-                            st.session_state['model'] = model
-                            st.session_state['model_type'] = 'sklearn'
-                        elif model_option == "Random Forest":
-                            model = train_random_forest(X_train, y_train)
-                            st.session_state['model'] = model
-                            st.session_state['model_type'] = 'sklearn'
+              
                         
                         st.session_state['trained_classes'] = training_classes # Store for inference
                         st.success("Training Complete!")
