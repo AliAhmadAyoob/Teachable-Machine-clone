@@ -1,9 +1,9 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import cv2
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
-import av
+# Removed: import cv2
+# Removed: from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
+# Removed: import av
 import uuid
 
 # Local Imports
@@ -112,28 +112,21 @@ with tab1:
             new_name = st.text_input("Class Name", value=cls['name'], key=f"name_{cls_id}", placeholder="Enter Class Name (e.g. Person, Dog)")
             cls['name'] = new_name # Update in place
             
-            # Data Input Methods
-            tab_upload, tab_cam = st.tabs(["📂 Upload", "📷 Webcam"])
-            
-            with tab_upload:
-                uploaded_files = st.file_uploader(f"Upload for {display_name}", accept_multiple_files=True, key=f"up_{cls_id}")
-                if uploaded_files:
-                    if cls_id not in st.session_state['data']:
-                        st.session_state['data'][cls_id] = []
-                    # Extend list
-                    current_files = set(f.name for f in st.session_state['data'][cls_id])
-                    for uf in uploaded_files:
-                        if uf.name not in current_files:
-                            st.session_state['data'][cls_id].append(uf)
+            # Data Input Method (Only Upload remains)
+            # The tabs UI is removed, making the uploader the direct content.
+            st.markdown("### Upload Image Samples")
 
-            with tab_cam:
-                # Camera Input
-                img_file = st.camera_input(f"Capture for {display_name}", key=f"cam_{cls_id}")
-                if img_file:
-                    if cls_id not in st.session_state['data']:
-                        st.session_state['data'][cls_id] = []
-                    st.session_state['data'][cls_id].append(img_file)
-                    st.success(f"Added! Total: {len(st.session_state['data'][cls_id])}")
+            uploaded_files = st.file_uploader(f"Upload for {display_name}", accept_multiple_files=True, key=f"up_{cls_id}")
+            if uploaded_files:
+                if cls_id not in st.session_state['data']:
+                    st.session_state['data'][cls_id] = []
+                # Extend list
+                current_files = set(f.name for f in st.session_state['data'][cls_id])
+                for uf in uploaded_files:
+                    if uf.name not in current_files:
+                        st.session_state['data'][cls_id].append(uf)
+
+            # Removed: with tab_cam: block and st.camera_input
             
             # Show Count & Samples
             if cls_id in st.session_state['data'] and st.session_state['data'][cls_id]:
@@ -231,7 +224,7 @@ with tab2:
                                 st.markdown("### Model Architecture")
                                 stringlist = []
                                 model.summary(print_fn=lambda x: stringlist.append(x))
-                                short_model_summary = "\\n".join(stringlist)
+                                short_model_summary = "\n".join(stringlist)
                                 st.code(short_model_summary)
                                 
                         elif model_option == "Logistic Regression":
@@ -264,70 +257,11 @@ with tab3:
         # Use the classes that were used during training
         inference_classes = st.session_state.get('trained_classes', [])
         
-        preview_tab_cam, preview_tab_upload = st.tabs(["📷 Webcam", "📂 Upload Image"])
+        # Only one tab remains: Upload Image
+        # preview_tab_cam, preview_tab_upload = st.tabs(["📷 Webcam", "📂 Upload Image"]) # Removed
+        preview_tab_upload = st.tabs(["📂 Upload Image"])[0] # Keep only the upload tab
         
-        with preview_tab_cam:
-            # WebRTC Processor
-            class Predictor(VideoTransformerBase):
-                def transform(self, frame):
-                    img = frame.to_ndarray(format="bgr24")
-                    
-                    # Resize for model
-                    img_resized = cv2.resize(img, (128, 128))
-                    img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
-                    
-                    # Normalize
-                    X_live = np.expand_dims(img_rgb.astype(np.float32) / 255.0, axis=0)
-                    
-                    # Predict
-                    if st.session_state['model_type'] == 'cnn':
-                        probs = st.session_state['model'].predict(X_live, verbose=0)[0]
-                    else:
-                        # Flatten for sklearn
-                        X_flat = X_live.reshape(1, -1)
-                        if hasattr(st.session_state['model'], 'predict_proba'):
-                            probs = st.session_state['model'].predict_proba(X_flat)[0]
-                        else:
-                            # Fallback for models without proba
-                            pred = st.session_state['model'].predict(X_flat)[0]
-                            probs = np.zeros(len(inference_classes))
-                            probs[pred] = 1.0
-                    
-                    # Overlay results
-                    h, w, _ = img.shape
-                    y_off = 50
-                    x_off = 20
-                    
-                    for i, prob in enumerate(probs):
-                        if i < len(inference_classes):
-                            label = inference_classes[i]
-                            score = prob * 100
-                            text = f"{label}: {score:.1f}%"
-                            
-                            # Dynamic Color (Green for high confidence, White otherwise)
-                            color = (0, 255, 0) if score > 50 else (255, 255, 255)
-                            
-                            # Background Box for Text
-                            (text_w, text_h), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
-                            cv2.rectangle(img, (x_off, y_off - text_h - 10), (x_off + text_w + 20, y_off + 5), (0, 0, 0), -1)
-                            
-                            # Text
-                            cv2.putText(img, text, (x_off + 10, y_off), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
-                            
-                            # Progress Bar
-                            bar_width = int((w - 40) * prob)
-                            cv2.rectangle(img, (x_off, y_off + 10), (x_off + bar_width, y_off + 20), color, -1)
-                            
-                            y_off += 60
-                        
-                    return img
-
-            webrtc_streamer(
-                key="preview", 
-                video_processor_factory=Predictor,
-                rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
-                media_stream_constraints={"video": True, "audio": False}
-            )
+        # Removed: with preview_tab_cam: block including Predictor class and webrtc_streamer call
 
         with preview_tab_upload:
             test_file = st.file_uploader("Upload an image to test", type=["png", "jpg", "jpeg"])
