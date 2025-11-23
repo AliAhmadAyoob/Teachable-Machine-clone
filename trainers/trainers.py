@@ -36,31 +36,57 @@ def train_cnn(X, y, input_shape, num_classes, epochs=5):
     history = model.fit(X, y, epochs=epochs, verbose=0) 
     return model, history
 
-def preprocess_data(data_dict, classes):
+# trainers/trainers.py (Modified)
+
+from io import BytesIO
+from PIL import Image
+import numpy as np
+import cv2 # If you use it for resizing/preproc
+
+IMAGE_SIZE = (128, 128)
+
+def preprocess_data(data_by_class, classes):
     """
-    Reads file uploader objects, resizes images, and converts them to
-    normalized NumPy arrays (X) with integer labels (y).
+    Loads images from file objects, preprocesses them, and prepares 
+    them for training.
     """
     X = []
     y = []
     
-    for i, class_name in enumerate(classes):
-        for file in data_dict[class_name]:
-            # Reset file pointer to the beginning
-            file.seek(0)
-            # Use BytesIO and file.read() to handle Streamlit uploaded file objects
-            img = Image.open(BytesIO(file.read())).convert("RGB") 
-            img = img.resize(IMAGE_SIZE)
-            
-            # Convert to array and normalize (0 to 1)
-            img_array = np.asarray(img, dtype=np.float32) / 255.0 
-            
-            X.append(img_array)
-            y.append(i) # Use the class index as the label
-            
-    X = np.array(X)
-    y = np.array(y)
-    return X, y
+    # Create a mapping from class name to numerical label (0, 1, 2, ...)
+    class_to_label = {name: i for i, name in enumerate(classes)}
+    
+    for class_name, file_list in data_by_class.items():
+        label = class_to_label[class_name]
+        
+        for file in file_list:
+            try:
+                # --- FIX IS HERE ---
+                # Reset the file pointer to the beginning of the file.
+                # This is essential because Streamlit file objects may have 
+                # been read already (e.g., for showing thumbnails).
+                file.seek(0) 
+                
+                # Use BytesIO to read the file content and open with PIL
+                img = Image.open(BytesIO(file.read())).convert("RGB")
+                
+                # Resize the image
+                img_resized = img.resize(IMAGE_SIZE)
+                
+                # Convert to numpy array and normalize
+                img_array = np.asarray(img_resized, dtype=np.float32) / 255.0
+                
+                X.append(img_array)
+                y.append(label)
+                
+            except Exception as e:
+                # Optional: Add error logging to see which file failed
+                print(f"Skipping file due to error: {e}")
+                continue
+
+    return np.array(X), np.array(y)
+
+# ... rest of trainers.py ...
 
 def split_data(X, y, test_size=0.2):
     """Splits the data into training and testing sets."""
@@ -100,3 +126,4 @@ def train_random_forest(X, y):
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_flat, y)
     return model
+
