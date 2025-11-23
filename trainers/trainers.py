@@ -100,30 +100,5 @@ def flatten_data(X):
     num_samples = X.shape[0]
     return X.reshape(num_samples, -1)  # Flatten each image to a 1D array
 
-def train_logistic_regression(X, y):
-    """
-    Trains a Logistic Regression model (classical classifier).
-    Requires data to be flattened before training.
-    """
-    # Ensure X is flattened before fitting (2D array)
-    X_flat = flatten_data(X)
 
-    # Initialize and fit the model
-    model = LogisticRegression(max_iter=100, solver='lbfgs', multi_class='auto', random_state=42)
-    # Fit the model to the flattened image features
-    model.fit(X_flat, y)
-    return model
-
-def train_random_forest(X, y):
-    """
-    Trains a Random Forest Classifier.
-    Requires data to be flattened before training.
-    """
-    # Ensure X is flattened before fitting (2D array)
-    X_flat = flatten_data(X)
-    # Initialize and fit the model
-    # n_estimators=100 is a reasonable default for a quick demo
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
-    model.fit(X_flat, y)
-    return model
 
